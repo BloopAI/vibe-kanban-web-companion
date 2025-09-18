@@ -105,41 +105,27 @@ export const ContextMenu = React.forwardRef((props, ref) => {
     [reference, ref]
   )
 
-  React.useEffect(() => {
-    function onContextMenu(
-      /** @type {MouseEvent} */
-      e
-    ) {
-      if (!e.altKey) {
-        return
-      }
-
-      e.preventDefault()
-      mergedReferenceRef({
+  // Expose imperative API for parent component to open the menu
+  React.useImperativeHandle(ref, () => ({
+    open({ x, y, target }) {
+      reference({
         getBoundingClientRect() {
           return {
-            x: e.clientX,
-            y: e.clientY,
+            x,
+            y,
             width: 0,
             height: 0,
-            top: e.clientY,
-            right: e.clientX,
-            bottom: e.clientY,
-            left: e.clientX,
+            top: y,
+            right: x,
+            bottom: y,
+            left: x,
           }
         },
       })
-
+      setTarget(target)
       setOpen(true)
-
-      if (e.target instanceof HTMLElement) setTarget(e.target)
-    }
-
-    document.addEventListener('contextmenu', onContextMenu)
-    return () => {
-      document.removeEventListener('contextmenu', onContextMenu)
-    }
-  }, [mergedReferenceRef])
+    },
+  }), [reference])
 
   React.useLayoutEffect(() => {
     if (open) {
@@ -167,13 +153,14 @@ export const ContextMenu = React.forwardRef((props, ref) => {
     })
   }, [arrowX, arrowY, placement])
 
-  if (!target) {
-    return null
-  }
-
-  const instances = getReactInstancesForElement(target).filter((instance) =>
-    getSourceForInstance(instance)
-  )
+  // Build the instance list only when a target exists – avoids
+  // unnecessary work after the menu is closed.
+  const instances = React.useMemo(() => {
+    if (!target) return []
+    return getReactInstancesForElement(target).filter((instance) =>
+      getSourceForInstance(instance)
+    )
+  }, [target])
 
   return html`
     <style key="click-to-component-contextmenu-style">

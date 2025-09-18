@@ -19,6 +19,11 @@ export const State = /** @type {const} */ ({
   SELECT: 'SELECT',
 })
 
+export const Trigger = /** @type {const} */ ({
+  ALT_KEY: 'alt-key',
+  BUTTON: 'button',
+})
+
 /**
  * @param {Props} props
  */
@@ -28,9 +33,107 @@ export function ClickToComponent({ editor = 'vscode', pathModifier }) {
     (State.IDLE)
   )
 
+  const [trigger, setTrigger] = React.useState(
+    /** @type {Trigger[keyof Trigger] | null} */
+    (null)
+  )
+
   const [target, setTarget] = React.useState(
     /** @type {HTMLElement | null} */
     (null)
+  )
+
+  const menuRef = React.useRef(
+    /** @type {any} */
+    (null)
+  )
+
+  const vkIconUrl = new URL('./assets/vk-icon.png', import.meta.url).href
+
+  const TargetButton = React.useCallback(
+    ({ active, onToggle }) => html`
+      <button
+        onClick=${function handleButtonClick(e) {
+          e.stopPropagation()
+          onToggle()
+        }}
+        aria-pressed=${active}
+        style=${{
+          position: 'fixed',
+          bottom: '16px',
+          right: '16px',
+          width: '48px',
+          height: '48px',
+          borderRadius: '50%',
+          background: active ? 'royalblue' : 'white',
+          color: active ? 'white' : 'black',
+          border: '1px solid #ccc',
+          boxShadow: '0 2px 6px rgba(0,0,0,.3)',
+          zIndex: 2147483647,
+          cursor: 'pointer',
+          fontSize: '18px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '8px',
+        }}
+        title="Toggle targeting mode"
+      >
+        <img
+          src=${vkIconUrl}
+          alt="VK Icon"
+          style=${{
+            width: '32px',
+            height: '32px',
+            filter: active ? 'brightness(0) invert(1)' : 'none',
+          }}
+        />
+      </button>
+    `,
+    []
+  )
+
+  const toggleTargeting = React.useCallback(() => {
+    if (state === State.HOVER && trigger === Trigger.BUTTON) {
+      setState(State.IDLE)
+      setTrigger(null)
+    } else {
+      setState(State.HOVER)
+      setTrigger(Trigger.BUTTON)
+    }
+  }, [state, trigger])
+
+  const onContextMenu = React.useCallback(
+    function handleContextMenu(
+      /**
+       * @type {MouseEvent}
+       */
+      event
+    ) {
+      const { target } = event
+
+      // Handle Alt+right-click (original behavior)
+      if (event.altKey && target instanceof HTMLElement) {
+        event.preventDefault()
+        menuRef.current?.open({
+          x: event.clientX,
+          y: event.clientY,
+          target: target,
+        })
+        setState(State.SELECT)
+        setTarget(target)
+        return
+      }
+
+      // Handle targeting mode right-click 
+      if (state === State.HOVER && target instanceof HTMLElement) {
+        event.preventDefault()
+
+        setState(State.SELECT)
+        setTarget(target)
+      }
+    },
+    [state]
   )
 
   const onClick = React.useCallback(
@@ -40,7 +143,22 @@ export function ClickToComponent({ editor = 'vscode', pathModifier }) {
        */
       event
     ) {
-      if (state === State.HOVER && target instanceof HTMLElement) {
+      // Handle targeting mode click (left-click opens context menu)
+      if (state === State.HOVER && trigger === Trigger.BUTTON && target instanceof HTMLElement) {
+        event.preventDefault()
+        // Use imperative API to open context menu
+        menuRef.current?.open({
+          x: event.clientX,
+          y: event.clientY,
+          target: event.target,
+        })
+        setState(State.SELECT)
+        setTarget(event.target)
+        return
+      }
+
+      // Handle Alt+click mode (existing behavior)
+      if (state === State.HOVER && trigger === Trigger.ALT_KEY && target instanceof HTMLElement) {
         const instance = getReactInstancesForElement(target).find((instance) =>
           getSourceForInstance(instance)
         )
@@ -70,9 +188,10 @@ export function ClickToComponent({ editor = 'vscode', pathModifier }) {
         window.location.assign(url)
 
         setState(State.IDLE)
+        setTrigger(null)
       }
     },
-    [editor, pathModifier, state, target]
+    [editor, pathModifier, state, trigger, target]
   )
 
   const onClose = React.useCallback(
@@ -87,27 +206,9 @@ export function ClickToComponent({ editor = 'vscode', pathModifier }) {
       }
 
       setState(State.IDLE)
+      setTrigger(null)
     },
     [editor]
-  )
-
-  const onContextMenu = React.useCallback(
-    function handleContextMenu(
-      /**
-       * @type {MouseEvent}
-       */
-      event
-    ) {
-      const { target } = event
-
-      if (state === State.HOVER && target instanceof HTMLElement) {
-        event.preventDefault()
-
-        setState(State.SELECT)
-        setTarget(target)
-      }
-    },
-    [state]
   )
 
   const onKeyDown = React.useCallback(
@@ -119,13 +220,23 @@ export function ClickToComponent({ editor = 'vscode', pathModifier }) {
     ) {
       switch (state) {
         case State.IDLE:
-          if (event.altKey) setState(State.HOVER)
+          if (event.altKey) {
+            setState(State.HOVER)
+            setTrigger(Trigger.ALT_KEY)
+          }
+          break
+
+        case State.HOVER:
+          if (event.key === 'Escape' && trigger === Trigger.BUTTON) {
+            setState(State.IDLE)
+            setTrigger(null)
+          }
           break
 
         default:
       }
     },
-    [state]
+    [state, trigger]
   )
 
   const onKeyUp = React.useCallback(
@@ -137,13 +248,16 @@ export function ClickToComponent({ editor = 'vscode', pathModifier }) {
     ) {
       switch (state) {
         case State.HOVER:
-          setState(State.IDLE)
+          if (trigger === Trigger.ALT_KEY) {
+            setState(State.IDLE)
+            setTrigger(null)
+          }
           break
 
         default:
       }
     },
-    [state]
+    [state, trigger]
   )
 
   const onMouseMove = React.useCallback(
@@ -173,6 +287,7 @@ export function ClickToComponent({ editor = 'vscode', pathModifier }) {
       switch (state) {
         case State.HOVER:
           setState(State.IDLE)
+          setTrigger(null)
           break
 
         default:
@@ -193,6 +308,7 @@ export function ClickToComponent({ editor = 'vscode', pathModifier }) {
 
       if (state === State.IDLE) {
         delete window.document.body.dataset.clickToComponent
+        window.document.body.style.removeProperty('--click-to-component-cursor')
         if (target) {
           delete target.dataset.clickToComponentTarget
         }
@@ -202,9 +318,15 @@ export function ClickToComponent({ editor = 'vscode', pathModifier }) {
       if (target instanceof HTMLElement) {
         window.document.body.dataset.clickToComponent = state
         target.dataset.clickToComponentTarget = state
+        
+        // Set cursor based on trigger type
+        window.document.body.style.setProperty(
+          '--click-to-component-cursor',
+          trigger === Trigger.BUTTON ? 'crosshair' : 'context-menu'
+        )
       }
     },
-    [state, target]
+    [state, target, trigger]
   )
 
   React.useEffect(
@@ -247,8 +369,14 @@ export function ClickToComponent({ editor = 'vscode', pathModifier }) {
     </style>
 
     <${FloatingPortal} key="click-to-component-portal">
+      <${TargetButton}
+        key="click-to-component-target-button"
+        active=${state === State.HOVER && trigger === Trigger.BUTTON}
+        onToggle=${toggleTargeting}
+      />
       ${html`<${ContextMenu}
         key="click-to-component-contextmenu"
+        ref=${menuRef}
         onClose=${onClose}
         pathModifier=${pathModifier}
       />`}
