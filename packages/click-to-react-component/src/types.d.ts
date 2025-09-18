@@ -6,6 +6,7 @@ export type PathModifier = (path: string) => string
 
 export type ClickToComponentProps = {
   editor?: Editor
+  port?: string | number
   pathModifier?: PathModifier
 }
 

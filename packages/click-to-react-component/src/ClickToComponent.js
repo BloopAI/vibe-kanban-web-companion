@@ -27,7 +27,7 @@ export const Trigger = /** @type {const} */ ({
 /**
  * @param {Props} props
  */
-export function ClickToComponent({ editor = 'vscode', pathModifier }) {
+export function ClickToComponent({ editor = 'vscode', port, pathModifier }) {
   const [state, setState] = React.useState(
     /** @type {State[keyof State]} */
     (State.IDLE)
@@ -54,39 +54,39 @@ export function ClickToComponent({ editor = 'vscode', pathModifier }) {
     ({ active, onToggle }) => html`
       <button
         onClick=${function handleButtonClick(e) {
-          e.stopPropagation()
-          onToggle()
-        }}
+        e.stopPropagation()
+        onToggle()
+      }}
         aria-pressed=${active}
         style=${{
-          position: 'fixed',
-          bottom: '16px',
-          right: '16px',
-          width: '48px',
-          height: '48px',
-          borderRadius: '50%',
-          background: active ? 'royalblue' : 'white',
-          color: active ? 'white' : 'black',
-          border: '1px solid #ccc',
-          boxShadow: '0 2px 6px rgba(0,0,0,.3)',
-          zIndex: 2147483647,
-          cursor: 'pointer',
-          fontSize: '18px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '8px',
-        }}
+        position: 'fixed',
+        bottom: '16px',
+        right: '16px',
+        width: '48px',
+        height: '48px',
+        borderRadius: '50%',
+        background: active ? 'royalblue' : 'white',
+        color: active ? 'white' : 'black',
+        border: '1px solid #ccc',
+        boxShadow: '0 2px 6px rgba(0,0,0,.3)',
+        zIndex: 2147483647,
+        cursor: 'pointer',
+        fontSize: '18px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '8px',
+      }}
         title="Toggle targeting mode"
       >
         <img
           src=${vkIconUrl}
           alt="VK Icon"
           style=${{
-            width: '32px',
-            height: '32px',
-            filter: active ? 'brightness(0) invert(1)' : 'none',
-          }}
+        width: '32px',
+        height: '32px',
+        filter: active ? 'brightness(0) invert(1)' : 'none',
+      }}
         />
       </button>
     `,
@@ -318,7 +318,7 @@ export function ClickToComponent({ editor = 'vscode', pathModifier }) {
       if (target instanceof HTMLElement) {
         window.document.body.dataset.clickToComponent = state
         target.dataset.clickToComponentTarget = state
-        
+
         // Set cursor based on trigger type
         window.document.body.style.setProperty(
           '--click-to-component-cursor',
@@ -379,6 +379,7 @@ export function ClickToComponent({ editor = 'vscode', pathModifier }) {
         ref=${menuRef}
         onClose=${onClose}
         pathModifier=${pathModifier}
+        port=${port}
       />`}
     </${FloatingPortal}
   `

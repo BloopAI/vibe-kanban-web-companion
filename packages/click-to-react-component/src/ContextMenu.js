@@ -32,7 +32,7 @@ import { getSourceForInstance } from './getSourceForInstance.js'
 // @ts-expect-error
 export const ContextMenu = React.forwardRef((props, ref) => {
   // @ts-expect-error
-  const { onClose, pathModifier } = props
+  const { onClose, pathModifier, port } = props
 
   const [target, setTarget] = React.useState(
     /** @type {HTMLElement | null} */
@@ -44,17 +44,9 @@ export const ContextMenu = React.forwardRef((props, ref) => {
     (null)
   )
 
-  const [activeIndex, setActiveIndex] = React.useState(
-    /** @type {number | null} */
-    (null)
-  )
-
   const [open, setOpen] = React.useState(false)
 
-  const listItemsRef = React.useRef(
-    /** @type {Array<HTMLButtonElement | null>} */
-    ([])
-  )
+  const [input, setInput] = React.useState('')
 
   const {
     x,
@@ -83,15 +75,9 @@ export const ContextMenu = React.forwardRef((props, ref) => {
     placement: 'right',
   })
 
-  const { getFloatingProps, getItemProps } = useInteractions([
+  const { getFloatingProps } = useInteractions([
     useRole(context, { role: 'menu' }),
     useDismiss(context),
-    useListNavigation(context, {
-      listRef: listItemsRef,
-      activeIndex,
-      onNavigate: setActiveIndex,
-      focusItemOnOpen: false,
-    }),
   ])
 
   React.useEffect(() => {
@@ -207,67 +193,19 @@ export const ContextMenu = React.forwardRef((props, ref) => {
         filter: drop-shadow(0px 0px 0.5px rgba(0 0 0 / 50%));
       }
 
-      [data-click-to-component-contextmenu] button {
-        all: unset;
-        outline: 0;
-        display: flex;
-        flex-direction: column;
-        width: 100%;
-        padding: 5px;
-        border-radius: 4px;
-        font-size: 13px;
-        max-width: 50vw;
-      }
-
-      [data-click-to-component-contextmenu] button:focus,
-      [data-click-to-component-contextmenu] button:not([disabled]):active {
-        cursor: pointer;
-        background: royalblue;
-        color: white;
-        box-shadow: var(--shadow-elevation-medium);
-      }
-
-      [data-click-to-component-contextmenu] button:focus code,
-      [data-click-to-component-contextmenu] button:not([disabled]):active code {
-        color: white;
-      }
-
-      [data-click-to-component-contextmenu] button > * + * {
-        margin-top: 3px;
-      }
-
-      [data-click-to-component-contextmenu] button code {
+      [data-click-to-component-contextmenu] code {
         color: royalblue;
         font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
           'Liberation Mono', 'Courier New', monospace;
       }
 
-      [data-click-to-component-contextmenu] button code var {
+      [data-click-to-component-contextmenu] code var {
         background: rgba(0 0 0 / 5%);
         cursor: help;
         border-radius: 3px;
         padding: 3px 6px;
         font-style: normal;
         font-weight: normal;
-        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-          'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif,
-          'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
-          'Noto Color Emoji';
-      }
-
-      [data-click-to-component-contextmenu] button cite {
-        font-weight: normal;
-        font-style: normal;
-        font-size: 11px;
-        opacity: 0.5;
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-          'Liberation Mono', 'Courier New', monospace;
-      }
-
-      [data-click-to-component-contextmenu] button cite data::after {
-        content: attr(value);
-        float: right;
-        padding-left: 15px;
         font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
           'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif,
           'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
@@ -290,64 +228,145 @@ export const ContextMenu = React.forwardRef((props, ref) => {
           <${FloatingFocusManager} context=${context}>
             <dialog
               ...${getFloatingProps({
-                ref: floating,
-                style: {
-                  position: strategy,
-                  top: y ?? '',
-                  left: x ?? '',
-                },
-              })}
+      ref: floating,
+      style: {
+        position: strategy,
+        top: y ?? '',
+        left: x ?? '',
+      },
+    })}
               data-click-to-component-contextmenu
               onClose=${function handleClose(event) {
-                // @ts-ignore Property 'returnValue' does not exist on type 'HTMLElement'.ts(2339)
-                onClose(refs.floating.current.returnValue)
-                setOpen(false)
-              }}
+        // @ts-ignore Property 'returnValue' does not exist on type 'HTMLElement'.ts(2339)
+        onClose(refs.floating.current.returnValue)
+        setOpen(false)
+      }}
               open
             >
-              <form method="dialog">
-                ${instances.map((instance, i) => {
-                  const name = getDisplayNameForInstance(instance)
-                  const source = getSourceForInstance(instance)
-                  const path = getPathToSource(source, pathModifier)
-                  const props = getPropsForInstance(instance)
+              <form
+                onSubmit=${function handleSubmit(event) {
+        event.preventDefault()
 
-                  return html`
-                    <button
-                      ...${getItemProps({
-                        role: 'menuitem',
-                        ref(
-                          /** @type {HTMLButtonElement} */
-                          node
-                        ) {
-                          listItemsRef.current[i] = node
-                        },
-                      })}
-                      key=${i}
-                      name="path"
-                      type="submit"
-                      value=${path}
-                    >
-                      <code>
-                        ${'<'}${name}
-                        ${Object.entries(props).map(
-                          ([prop, value]) => html`
-                            ${' '}
-                            <var key=${prop} title="${value}">${prop}</var>
-                          `
-                        )}
-                        ${'>'}
-                      </code>
-                      <cite>
-                        <data
-                          value="${source.lineNumber}:${source.columnNumber}"
-                        >
-                          ${source.fileName.replace(/.*(src|pages)/, '$1')}
-                        </data>
-                      </cite>
-                    </button>
-                  `
-                })}
+        const components = instances.map((instance) => {
+          const name = getDisplayNameForInstance(instance)
+          const source = getSourceForInstance(instance)
+          const path = getPathToSource(source, pathModifier)
+          const props = getPropsForInstance(instance)
+
+          return {
+            name,
+            props,
+            source: {
+              fileName: source.fileName,
+              lineNumber: source.lineNumber,
+              columnNumber: source.columnNumber
+            },
+            path
+          }
+        })
+
+        const component_strs = components.map(({ name, path }) => {
+          return `<${name}> component located in \`${path}\``
+        })
+
+        const component_str = component_strs.join('\nInside ')
+
+        const prompt = `The user has the following feedback:\n\n\`\`\`\n${input}\n\`\`\`\n\nAbout the component stack: ${component_str}`;
+
+        console.log(prompt, port)
+
+        fetch(`http://127.0.0.1:${port}/api/task-attempts/890419d8-150c-485d-ada3-49541475e18b/follow-up`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            prompt,
+          }),
+        })
+          .then((res) => {
+            if (!res.ok) {
+              throw new Error(`HTTP error! Status: ${res.status}`);
+            }
+            return res.json();
+          })
+          .then((data) => {
+            console.log("Response:", data);
+          })
+          .catch((err) => {
+            console.error("Error:", err);
+          });
+
+        setOpen(false)
+        onClose?.()
+      }}
+              >
+                <textarea
+                  rows="5"
+                  cols="40"
+                  placeholder="Describe what you want…"
+                  value=${input}
+                  onInput=${function handleInput(event) {
+        setInput(event.target.value)
+      }}
+                  style=${{
+        width: '100%',
+        resize: 'vertical',
+        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+        border: '1px solid #ccc',
+        borderRadius: '4px',
+        padding: '5px',
+        boxSizing: 'border-box'
+      }}
+                  autoFocus
+                />
+
+                <hr style=${{ margin: '10px 0', border: 'none', borderTop: '1px solid #ccc' }} />
+
+                <ul style=${{ listStyle: 'none', margin: 0, padding: 0 }}>
+                  ${instances.map((instance, i) => {
+        const name = getDisplayNameForInstance(instance)
+        const source = getSourceForInstance(instance)
+        const path = getPathToSource(source, pathModifier)
+        const props = getPropsForInstance(instance)
+
+        return html`
+                      <li key=${i} style=${{ marginBottom: '8px' }}>
+                        <code>
+                          ${'<'}${name}
+                          ${Object.entries(props).map(
+          ([prop, value]) => html`
+                              ${' '}
+                              <var key=${prop} title="${value}">${prop}</var>
+                            `
+        )}
+                          ${'>'}
+                        </code>
+                        <br/>
+                        <cite style=${{ opacity: 0.5, fontSize: '11px', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>
+                          ${source.fileName.replace(/.*(src|pages)/, '$1')} ${source.lineNumber}:${source.columnNumber}
+                        </cite>
+                      </li>
+                    `
+      })}
+                </ul>
+
+                <button 
+                  type="submit" 
+                  style=${{
+        all: 'unset',
+        cursor: 'pointer',
+        background: 'royalblue',
+        color: 'white',
+        padding: '5px 10px',
+        borderRadius: '4px',
+        fontSize: '13px',
+        marginTop: '10px',
+        float: 'right'
+      }}
+                >
+                  Submit
+                </button>
               </form>
 
               <div
