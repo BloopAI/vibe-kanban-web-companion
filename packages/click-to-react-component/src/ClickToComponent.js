@@ -38,7 +38,7 @@ const MESSAGE_VERSION = 1
  */
 function getComponentInstances(target, pathModifier) {
   if (!target) return []
-  
+
   const instances = getReactInstancesForElement(target).filter((instance) =>
     getSourceForInstance(instance)
   )
@@ -81,23 +81,23 @@ function postOpenToParent({ editor, pathToSource, url, trigger, event, element, 
 
     // Get all component instances for the clicked element
     const allComponents = el ? getComponentInstances(el, pathModifier) : []
-    
+
     // Find the selected component in the list (or use the first one)
-    const selected = selectedComponent 
+    const selected = selectedComponent
       ? allComponents.find(comp => comp.name === selectedComponent)
       : allComponents.find(comp => comp.pathToSource === pathToSource) || allComponents[0]
 
     const elementInfo = el
       ? {
-          tag: el.tagName?.toLowerCase?.() || undefined,
-          id: el.id || undefined,
-          className:
-            typeof el.className === 'string'
-              ? el.className
-              : String(el.className || ''),
-          role: el.getAttribute('role') || undefined,
-          dataset: { ...el.dataset },
-        }
+        tag: el.tagName?.toLowerCase?.() || undefined,
+        id: el.id || undefined,
+        className:
+          typeof el.className === 'string'
+            ? el.className
+            : String(el.className || ''),
+        role: el.getAttribute('role') || undefined,
+        dataset: { ...el.dataset },
+      }
       : undefined
 
     const message = {
@@ -273,6 +273,20 @@ export function ClickToComponent({ editor = 'vscode', port, pathModifier }) {
         })
         setState(State.SELECT)
         setTarget(event.target)
+
+
+        // Notify parent window when context menu opens
+        postOpenToParent({
+          editor,
+          pathToSource: '', // Will be determined when user selects
+          url: '',
+          trigger: 'context-menu',
+          event,
+          element: target,
+          pathModifier,
+        })
+
+
         return
       }
 
@@ -304,19 +318,6 @@ export function ClickToComponent({ editor = 'vscode', port, pathModifier }) {
         })
 
         event.preventDefault()
-
-        // Notify parent window via postMessage
-        postOpenToParent({
-          editor,
-          pathToSource: path,
-          url,
-          trigger: 'alt-click',
-          event,
-          element: target,
-          pathModifier,
-          selectedComponent: getDisplayNameForInstance(instance)
-        })
-
         window.location.assign(url)
 
         setState(State.IDLE)
@@ -332,16 +333,6 @@ export function ClickToComponent({ editor = 'vscode', port, pathModifier }) {
         const url = getUrl({
           editor,
           pathToSource: returnValue,
-        })
-
-        // Notify parent window via postMessage
-        postOpenToParent({
-          editor,
-          pathToSource: returnValue,
-          url,
-          trigger: 'context-menu',
-          element: target,
-          pathModifier,
         })
 
         window.location.assign(url)
@@ -481,10 +472,10 @@ export function ClickToComponent({ editor = 'vscode', port, pathModifier }) {
     ) {
       try {
         window.parent.postMessage(
-          { 
-            source: MESSAGE_SOURCE, 
-            version: MESSAGE_VERSION, 
-            type: 'ready' 
+          {
+            source: MESSAGE_SOURCE,
+            version: MESSAGE_VERSION,
+            type: 'ready'
           },
           '*'
         )
