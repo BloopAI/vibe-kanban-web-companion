@@ -1,6 +1,6 @@
 /**
- * @typedef {import('./types').ClickToComponentProps} Props
- * @typedef {import('./types').Coords} Coords
+ * @typedef {import('./types.js').VibeKanbanWebCompanion} Props
+ * @typedef {import('./types.js').Coords} Coords
  */
 
 import { FloatingPortal } from '@floating-ui/react-dom-interactions'
@@ -33,7 +33,7 @@ const MESSAGE_VERSION = 1
 /**
  * Extract component instances data for a target element
  * @param {HTMLElement} target
- * @param {import('./types').PathModifier} pathModifier
+ * @param {import('./types.js').PathModifier} pathModifier
  * @returns {Array}
  */
 function getComponentInstances(target, pathModifier) {
@@ -72,7 +72,7 @@ function getComponentInstances(target, pathModifier) {
  * @param {'alt-click'|'context-menu'} args.trigger
  * @param {MouseEvent} [args.event]
  * @param {HTMLElement} [args.element]
- * @param {import('./types').PathModifier} [args.pathModifier]
+ * @param {import('./types.js').PathModifier} [args.pathModifier]
  * @param {string} [args.selectedComponent] - Name of the selected component
  */
 function postOpenToParent({ editor, pathToSource, url, trigger, event, element, pathModifier, selectedComponent }) {
@@ -146,7 +146,9 @@ function postOpenToParent({ editor, pathToSource, url, trigger, event, element, 
 /**
  * @param {Props} props
  */
-export function ClickToComponent({ editor = 'vscode', pathModifier }) {
+export function VibeKanbanWebCompanion() {
+  const editor = 'vscode' // legacy
+  const pathModifier = (path) => path // legacy
   const [state, setState] = React.useState(
     /** @type {State[keyof State]} */
     (State.IDLE)
@@ -256,9 +258,14 @@ export function ClickToComponent({ editor = 'vscode', pathModifier }) {
        */
       event
     ) {
+      // Prevent all default actions when targeting is active
+      if (state === State.HOVER) {
+        event.preventDefault()
+        event.stopPropagation()
+      }
+
       // Handle targeting mode click (left-click sends message to parent)
       if (state === State.HOVER && trigger === Trigger.BUTTON && target instanceof HTMLElement) {
-        event.preventDefault()
 
         // Notify parent window with component info
         postOpenToParent({

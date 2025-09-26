@@ -1,4 +1,4 @@
-import { ClickToComponent as Component } from './ClickToComponent.js'
+import { VibeKanbanWebCompanion as Component } from './VibeKanbanWebCompanion.js'
 
-export const ClickToComponent =
+export const VibeKanbanWebCompanion =
   process.env.NODE_ENV === 'development' ? Component : () => null

@@ -1,6 +1,6 @@
 import { cssBundleHref } from "@remix-run/css-bundle";
 import type { LinksFunction, LoaderArgs } from "@remix-run/node";
-import { ClickToComponent } from "click-to-react-component";
+import { VibeKanbanWebCompanion } from "vibe-kanban-web-companion";
 import { json } from "@remix-run/node";
 import {
   Links,
@@ -21,8 +21,8 @@ export const links: LinksFunction = () => [
 ];
 
 export const loader = async ({ request }: LoaderArgs) => {
-  return json({ 
-    user: await getUser(request),  
+  return json({
+    user: await getUser(request),
     projectDir: process.env.NODE_ENV === 'production' ? undefined : process.cwd(),
   });
 };
@@ -43,7 +43,7 @@ export default function App() {
         <ScrollRestoration />
         <Scripts />
         <LiveReload />
-        <ClickToComponent pathModifier={(path: string) => `${projectDir}/${path}`} />
+        <VibeKanbanWebCompanion />
       </body>
     </html>
   );

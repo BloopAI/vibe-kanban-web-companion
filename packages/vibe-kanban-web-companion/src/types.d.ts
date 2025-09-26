@@ -1,10 +1,10 @@
-export { ClickToComponent } from './ClickToComponent'
+export { VibeKanbanWebCompanion } from './VibeKanbanWebCompanion'
 
 export type Editor = 'vscode' | 'vscode-insiders' | 'cursor' | string
 
 export type PathModifier = (path: string) => string
 
-export type ClickToComponentProps = {
+export type VibeKanbanWebCompanionProps = {
   editor?: Editor
   pathModifier?: PathModifier
 }

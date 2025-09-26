@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "vibe-kanban-web-companion",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "description": "Add point-and-click edit functionality to web apps, when used with [Vibe Kanban](https://vibekanban.com).",
   "exports": {
     "types": "./src/types.d.ts",
