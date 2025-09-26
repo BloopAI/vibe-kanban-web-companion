@@ -1,1 +1,1 @@
-../packages/click-to-react-component/README.md
+../packages/vibe-kanban-web-companion/README.md
