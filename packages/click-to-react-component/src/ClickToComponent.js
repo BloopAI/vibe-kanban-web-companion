@@ -8,7 +8,9 @@ import { html } from 'htm/react'
 import * as React from 'react'
 
 import { ContextMenu } from './ContextMenu.js'
+import { getDisplayNameForInstance } from './getDisplayNameFromReactInstance.js'
 import { getPathToSource } from './getPathToSource.js'
+import { getPropsForInstance } from './getPropsForInstance.js'
 import { getReactInstancesForElement } from './getReactInstancesForElement.js'
 import { getSourceForInstance } from './getSourceForInstance.js'
 import { getUrl } from './getUrl.js'
@@ -23,6 +25,123 @@ export const Trigger = /** @type {const} */ ({
   ALT_KEY: 'alt-key',
   BUTTON: 'button',
 })
+
+// Message source and version for iframe communication
+const MESSAGE_SOURCE = 'click-to-component'
+const MESSAGE_VERSION = 1
+
+/**
+ * Extract component instances data for a target element
+ * @param {HTMLElement} target
+ * @param {Function} pathModifier
+ * @returns {Array}
+ */
+function getComponentInstances(target, pathModifier) {
+  if (!target) return []
+  
+  const instances = getReactInstancesForElement(target).filter((instance) =>
+    getSourceForInstance(instance)
+  )
+
+  return instances.map((instance) => {
+    const name = getDisplayNameForInstance(instance)
+    const source = getSourceForInstance(instance)
+    const path = getPathToSource(source, pathModifier)
+    const props = getPropsForInstance(instance)
+
+    return {
+      name,
+      props,
+      source: {
+        fileName: source.fileName,
+        lineNumber: source.lineNumber,
+        columnNumber: source.columnNumber
+      },
+      pathToSource: path
+    }
+  })
+}
+
+/**
+ * Send a message to the parent window when opening in editor.
+ * No-ops when not inside an iframe.
+ * @param {Object} args
+ * @param {string} args.editor
+ * @param {string} args.pathToSource
+ * @param {string} args.url
+ * @param {'alt-click'|'context-menu'} args.trigger
+ * @param {MouseEvent} [args.event]
+ * @param {HTMLElement} [args.element]
+ * @param {Function} [args.pathModifier]
+ * @param {string} [args.selectedComponent] - Name of the selected component
+ */
+function postOpenToParent({ editor, pathToSource, url, trigger, event, element, pathModifier, selectedComponent }) {
+  try {
+    const el = element || (event && event.target instanceof HTMLElement ? event.target : null)
+
+    // Get all component instances for the clicked element
+    const allComponents = el ? getComponentInstances(el, pathModifier) : []
+    
+    // Find the selected component in the list (or use the first one)
+    const selected = selectedComponent 
+      ? allComponents.find(comp => comp.name === selectedComponent)
+      : allComponents.find(comp => comp.pathToSource === pathToSource) || allComponents[0]
+
+    const elementInfo = el
+      ? {
+          tag: el.tagName?.toLowerCase?.() || undefined,
+          id: el.id || undefined,
+          className:
+            typeof el.className === 'string'
+              ? el.className
+              : String(el.className || ''),
+          role: el.getAttribute('role') || undefined,
+          dataset: { ...el.dataset },
+        }
+      : undefined
+
+    const message = {
+      source: MESSAGE_SOURCE,
+      version: MESSAGE_VERSION,
+      type: 'open-in-editor',
+      payload: {
+        selected: selected ? {
+          editor,
+          pathToSource: selected.pathToSource,
+          url,
+          name: selected.name,
+          props: selected.props,
+          source: selected.source
+        } : {
+          editor,
+          pathToSource,
+          url,
+          name: selectedComponent || 'Unknown',
+          props: {},
+          source: {}
+        },
+        components: allComponents,
+        trigger,
+        coords: event
+          ? { x: event.clientX ?? undefined, y: event.clientY ?? undefined }
+          : undefined,
+        clickedElement: elementInfo,
+      },
+    }
+
+    if (
+      typeof window !== 'undefined' &&
+      window.parent &&
+      window.parent !== window &&
+      typeof window.parent.postMessage === 'function'
+    ) {
+      window.parent.postMessage(message, '*') // dev-only, permissive
+    }
+  } catch (err) {
+    // Never break product flows due to messaging
+    console.warn('[click-to-component] postMessage failed', err)
+  }
+}
 
 /**
  * @param {Props} props
@@ -185,6 +304,19 @@ export function ClickToComponent({ editor = 'vscode', port, pathModifier }) {
         })
 
         event.preventDefault()
+
+        // Notify parent window via postMessage
+        postOpenToParent({
+          editor,
+          pathToSource: path,
+          url,
+          trigger: 'alt-click',
+          event,
+          element: target,
+          pathModifier,
+          selectedComponent: getDisplayNameForInstance(instance)
+        })
+
         window.location.assign(url)
 
         setState(State.IDLE)
@@ -202,13 +334,23 @@ export function ClickToComponent({ editor = 'vscode', port, pathModifier }) {
           pathToSource: returnValue,
         })
 
+        // Notify parent window via postMessage
+        postOpenToParent({
+          editor,
+          pathToSource: returnValue,
+          url,
+          trigger: 'context-menu',
+          element: target,
+          pathModifier,
+        })
+
         window.location.assign(url)
       }
 
       setState(State.IDLE)
       setTrigger(null)
     },
-    [editor]
+    [editor, target, pathModifier]
   )
 
   const onKeyDown = React.useCallback(
@@ -328,6 +470,29 @@ export function ClickToComponent({ editor = 'vscode', port, pathModifier }) {
     },
     [state, target, trigger]
   )
+
+  // Send ready message to parent when component mounts
+  React.useEffect(function sendReadyMessage() {
+    if (
+      typeof window !== 'undefined' &&
+      window.parent &&
+      window.parent !== window &&
+      typeof window.parent.postMessage === 'function'
+    ) {
+      try {
+        window.parent.postMessage(
+          { 
+            source: MESSAGE_SOURCE, 
+            version: MESSAGE_VERSION, 
+            type: 'ready' 
+          },
+          '*'
+        )
+      } catch (err) {
+        console.warn('[click-to-component] ready message failed', err)
+      }
+    }
+  }, [])
 
   React.useEffect(
     function addEventListenersToWindow() {
