@@ -162,6 +162,8 @@ export function ClickToComponent({ editor = 'vscode', pathModifier }) {
     (null)
   )
 
+  const [isFramed, setIsFramed] = React.useState(false)
+
 
 
   const vkIconUrl = new URL('./assets/vk-icon.png', import.meta.url).href
@@ -439,6 +441,17 @@ export function ClickToComponent({ editor = 'vscode', pathModifier }) {
     [state, target, trigger]
   )
 
+  // Detect if running in iframe
+  React.useEffect(function detectIframe() {
+    if (typeof window === 'undefined') return
+    try {
+      setIsFramed(window.self !== window.top)
+    } catch {
+      // Accessing window.top can throw in sandboxed contexts; assume framed
+      setIsFramed(true)
+    }
+  }, [])
+
   // Send ready message to parent when component mounts
   React.useEffect(function sendReadyMessage() {
     if (
@@ -501,12 +514,14 @@ export function ClickToComponent({ editor = 'vscode', pathModifier }) {
       }
     </style>
 
-    <${FloatingPortal} key="click-to-component-portal">
-      <${TargetButton}
-        key="click-to-component-target-button"
-        active=${state === State.HOVER && trigger === Trigger.BUTTON}
-        onToggle=${toggleTargeting}
-      />
-    </${FloatingPortal}
+    ${isFramed && html`
+      <${FloatingPortal} key="click-to-component-portal">
+        <${TargetButton}
+          key="click-to-component-target-button"
+          active=${state === State.HOVER && trigger === Trigger.BUTTON}
+          onToggle=${toggleTargeting}
+        />
+      </${FloatingPortal}>
+    `}
   `
 }
