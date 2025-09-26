@@ -1,8 +1,8 @@
 {
   "type": "module",
-  "name": "click-to-react-component",
-  "version": "1.1.2",
-  "description": "Option+Click your React components in your browser to open the source file in VS Code",
+  "name": "vibe-kanban-web-companion",
+  "version": "0.0.1",
+  "description": "Add point-and-click edit functionality to web apps, when used with [Vibe Kanban](https://vibekanban.com).",
   "exports": {
     "types": "./src/types.d.ts",
     "import": "./src/index.js",
@@ -20,7 +20,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ericclemmons/click-to-component.git"
+    "url": "git+https://github.com/BloopAI/vibe-kanban-web-companion.git"
   },
   "keywords": [
     "react",
@@ -29,12 +29,12 @@
     "vscode",
     "devtools"
   ],
-  "author": "Eric Clemmons <eric@smarterspam.com>",
+  "author": "bloop",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/ericclemmons/click-to-component/issues"
+    "url": "https://github.com/BloopAI/vibe-kanban-web-companion/issues"
   },
-  "homepage": "https://github.com/ericclemmons/click-to-component#readme",
+  "homepage": "https://github.com/BloopAI/vibe-kanban-web-companion#readme",
   "peerDependencies": {
     "react": ">=16.8.0"
   },
