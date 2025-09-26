@@ -8,7 +8,7 @@ import reportWebVitals from './reportWebVitals';
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
-    <ClickToComponent editor={process.env.REACT_APP_CTC_EDITOR} port={process.env.REACT_APP_VIBE_KANBAN_PORT} />
+    <ClickToComponent editor={process.env.REACT_APP_CTC_EDITOR} />
     <App />
   </React.StrictMode>
 );

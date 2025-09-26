@@ -7,7 +7,7 @@ import { FloatingPortal } from '@floating-ui/react-dom-interactions'
 import { html } from 'htm/react'
 import * as React from 'react'
 
-import { ContextMenu } from './ContextMenu.js'
+
 import { getDisplayNameForInstance } from './getDisplayNameFromReactInstance.js'
 import { getPathToSource } from './getPathToSource.js'
 import { getPropsForInstance } from './getPropsForInstance.js'
@@ -33,7 +33,7 @@ const MESSAGE_VERSION = 1
 /**
  * Extract component instances data for a target element
  * @param {HTMLElement} target
- * @param {Function} pathModifier
+ * @param {import('./types').PathModifier} pathModifier
  * @returns {Array}
  */
 function getComponentInstances(target, pathModifier) {
@@ -72,7 +72,7 @@ function getComponentInstances(target, pathModifier) {
  * @param {'alt-click'|'context-menu'} args.trigger
  * @param {MouseEvent} [args.event]
  * @param {HTMLElement} [args.element]
- * @param {Function} [args.pathModifier]
+ * @param {import('./types').PathModifier} [args.pathModifier]
  * @param {string} [args.selectedComponent] - Name of the selected component
  */
 function postOpenToParent({ editor, pathToSource, url, trigger, event, element, pathModifier, selectedComponent }) {
@@ -146,7 +146,7 @@ function postOpenToParent({ editor, pathToSource, url, trigger, event, element, 
 /**
  * @param {Props} props
  */
-export function ClickToComponent({ editor = 'vscode', port, pathModifier }) {
+export function ClickToComponent({ editor = 'vscode', pathModifier }) {
   const [state, setState] = React.useState(
     /** @type {State[keyof State]} */
     (State.IDLE)
@@ -162,10 +162,7 @@ export function ClickToComponent({ editor = 'vscode', port, pathModifier }) {
     (null)
   )
 
-  const menuRef = React.useRef(
-    /** @type {any} */
-    (null)
-  )
+
 
   const vkIconUrl = new URL('./assets/vk-icon.png', import.meta.url).href
 
@@ -229,30 +226,23 @@ export function ClickToComponent({ editor = 'vscode', port, pathModifier }) {
        */
       event
     ) {
-      const { target } = event
-
-      // Handle Alt+right-click (original behavior)
-      if (event.altKey && target instanceof HTMLElement) {
+      // Only interfere when the tool is active
+      if (state !== State.IDLE && event.target instanceof HTMLElement) {
         event.preventDefault()
-        menuRef.current?.open({
-          x: event.clientX,
-          y: event.clientY,
-          target: target,
+
+        // Optional: notify the parent for visualization
+        postOpenToParent({
+          editor,
+          pathToSource: '',
+          url: '',
+          trigger: 'context-menu',
+          event,
+          element: event.target,
+          pathModifier
         })
-        setState(State.SELECT)
-        setTarget(target)
-        return
-      }
-
-      // Handle targeting mode right-click 
-      if (state === State.HOVER && target instanceof HTMLElement) {
-        event.preventDefault()
-
-        setState(State.SELECT)
-        setTarget(target)
       }
     },
-    [state]
+    [state, editor, pathModifier]
   )
 
   const onClick = React.useCallback(
@@ -262,20 +252,11 @@ export function ClickToComponent({ editor = 'vscode', port, pathModifier }) {
        */
       event
     ) {
-      // Handle targeting mode click (left-click opens context menu)
+      // Handle targeting mode click (left-click sends message to parent)
       if (state === State.HOVER && trigger === Trigger.BUTTON && target instanceof HTMLElement) {
         event.preventDefault()
-        // Use imperative API to open context menu
-        menuRef.current?.open({
-          x: event.clientX,
-          y: event.clientY,
-          target: event.target,
-        })
-        setState(State.SELECT)
-        setTarget(event.target)
-
-
-        // Notify parent window when context menu opens
+        
+        // Notify parent window with component info
         postOpenToParent({
           editor,
           pathToSource: '', // Will be determined when user selects
@@ -286,11 +267,12 @@ export function ClickToComponent({ editor = 'vscode', port, pathModifier }) {
           pathModifier,
         })
 
-
+        setState(State.IDLE)
+        setTrigger(null)
         return
       }
 
-      // Handle Alt+click mode (existing behavior)
+      // Handle Alt+click mode (use postMessage instead of navigation)
       if (state === State.HOVER && trigger === Trigger.ALT_KEY && target instanceof HTMLElement) {
         const instance = getReactInstancesForElement(target).find((instance) =>
           getSourceForInstance(instance)
@@ -318,7 +300,17 @@ export function ClickToComponent({ editor = 'vscode', port, pathModifier }) {
         })
 
         event.preventDefault()
-        window.location.assign(url)
+        
+        // Use postMessage instead of direct navigation
+        postOpenToParent({
+          editor,
+          pathToSource: path,
+          url,
+          trigger: 'alt-click',
+          event,
+          element: target,
+          pathModifier
+        })
 
         setState(State.IDLE)
         setTrigger(null)
@@ -327,22 +319,7 @@ export function ClickToComponent({ editor = 'vscode', port, pathModifier }) {
     [editor, pathModifier, state, trigger, target]
   )
 
-  const onClose = React.useCallback(
-    function handleClose(returnValue) {
-      if (returnValue) {
-        const url = getUrl({
-          editor,
-          pathToSource: returnValue,
-        })
 
-        window.location.assign(url)
-      }
-
-      setState(State.IDLE)
-      setTrigger(null)
-    },
-    [editor, target, pathModifier]
-  )
 
   const onKeyDown = React.useCallback(
     function handleKeyDown(
@@ -452,10 +429,10 @@ export function ClickToComponent({ editor = 'vscode', port, pathModifier }) {
         window.document.body.dataset.clickToComponent = state
         target.dataset.clickToComponentTarget = state
 
-        // Set cursor based on trigger type
+        // Set cursor to crosshair for targeting
         window.document.body.style.setProperty(
           '--click-to-component-cursor',
-          trigger === Trigger.BUTTON ? 'crosshair' : 'context-menu'
+          'crosshair'
         )
       }
     },
@@ -515,7 +492,7 @@ export function ClickToComponent({ editor = 'vscode', port, pathModifier }) {
       }
 
       [data-click-to-component-target] {
-        cursor: var(--click-to-component-cursor, context-menu) !important;
+        cursor: var(--click-to-component-cursor, crosshair) !important;
         outline: auto 1px;
         outline: var(
           --click-to-component-outline,
@@ -530,13 +507,6 @@ export function ClickToComponent({ editor = 'vscode', port, pathModifier }) {
         active=${state === State.HOVER && trigger === Trigger.BUTTON}
         onToggle=${toggleTargeting}
       />
-      ${html`<${ContextMenu}
-        key="click-to-component-contextmenu"
-        ref=${menuRef}
-        onClose=${onClose}
-        pathModifier=${pathModifier}
-        port=${port}
-      />`}
     </${FloatingPortal}
   `
 }
